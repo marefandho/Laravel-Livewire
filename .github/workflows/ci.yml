@@ -1,10 +1,10 @@
-name: CI
+name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
   test:
@@ -56,3 +56,41 @@ jobs:
 
       - name: Run tests
         run: php artisan test --parallel --recreate-databases --env=testing
+  
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pgsql, bcmath
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install Composer dependencies & build frontend
+        run: | 
+          composer install --prefer-dist --no-progress --no-suggest
+          npm install
+          npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: mstore-livewire
+          path: |
+            vendor
+            public/build
+            bootstrap/cache
+            app
+            routes
+            config
